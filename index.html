@@ -423,9 +423,10 @@
         .result-content {
             color: var(--text-primary);
             font-family: monospace;
-            font-size: 12px;
+            font-size: 13px;
             white-space: pre-wrap;
             word-break: break-word;
+            line-height: 1.5;
         }
 
         .loading {
@@ -560,7 +561,7 @@
         if (e.key === 'Enter') checkPassword();
     });
     
-    // ========== BACKGROUND MUSIC - FULL VOLUME, NO CONTROL ==========
+    // ========== BACKGROUND MUSIC ==========
     let bgAudio = null;
     let musicStarted = false;
     
@@ -572,7 +573,6 @@
         bgAudio.play().catch(e => console.log('Auto-play blocked'));
         musicStarted = true;
         
-        // Retry on any user click if not playing
         document.body.addEventListener('click', function forcePlay() {
             if (bgAudio && bgAudio.paused) {
                 bgAudio.play().catch(e => {});
@@ -597,13 +597,12 @@
         darkToggle.checked = true;
     }
     
-    // ========== API CONFIG with MULTIPLE CORS PROXY BACKUP ==========
+    // ========== API CONFIG with CORS PROXY ==========
     const CORS_PROXIES = [
         'https://corsproxy.io/?',
         'https://api.allorigins.win/raw?url=',
         'https://cors-anywhere.herokuapp.com/'
     ];
-    let currentProxyIndex = 0;
     
     const API_CONFIG = {
         number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number' },
@@ -634,7 +633,7 @@
         searchInput.value = '';
         overlay.style.display = 'flex';
         
-        // ========== HAR BAAR TELEGRAM POPUP ==========
+        // Telegram Popup - Har baar aayega
         showTelegramPopup();
     }
     
@@ -660,7 +659,7 @@
         
         modal.innerHTML = `
             <div style="background: var(--card-bg); padding: 28px 22px; border-radius: 40px; max-width: 350px; width: 100%; text-align: center; border: 2px solid #22D3EE;">
-                <h3 style="background: linear-gradient(135deg, #0F766E, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px; font-size: 1.4rem;">📢 JOIN SPIDEY OSINT</h3>
+                                <h3 style="background: linear-gradient(135deg, #0F766E, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px; font-size: 1.4rem;">📢 JOIN SPIDEY OSINT</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Exclusive tools • API updates • Intelligence feeds</p>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button id="popupJoinBtn" style="background: linear-gradient(135deg,#0F766E,#22D3EE); color:white; border:none; padding: 12px 28px; border-radius: 40px; cursor:pointer; font-weight:bold;">Join Now 🔥</button>
@@ -679,7 +678,75 @@
         modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     }
     
-    // ========== SEARCH FUNCTION with PROXY ROTATION ==========
+    // ========== SMART EXTRACT INFO FUNCTION ==========
+    function extractInfo(data) {
+        if (!data) return 'No data received';
+        
+        // 1. Agar direct info field hai
+        if (data.info) return data.info;
+        if (data.message) return data.message;
+        
+        // 2. Agar result array hai (jaise screenshot me dikha)
+        if (data.result && Array.isArray(data.result) && data.result.length > 0) {
+            const item = data.result[0];
+            let info = [];
+            if (item.name) info.push(`👤 Name: ${item.name}`);
+            if (item.father_name) info.push(`👨 Father: ${item.father_name}`);
+            if (item.address) info.push(`📍 Address: ${item.address}`);
+            if (item.mobile) info.push(`📞 Mobile: ${item.mobile}`);
+            if (item.phone) info.push(`📱 Phone: ${item.phone}`);
+            if (item.circle) info.push(`🔄 Circle: ${item.circle}`);
+            
+            if (info.length > 0) return info.join('\n');
+        }
+        
+        // 3. Agar result object directly hai
+        if (data.result && typeof data.result === 'object' && !Array.isArray(data.result)) {
+            const item = data.result;
+            let info = [];
+            if (item.name) info.push(`👤 Name: ${item.name}`);
+            if (item.father_name) info.push(`👨 Father: ${item.father_name}`);
+            if (item.address) info.push(`📍 Address: ${item.address}`);
+            if (item.mobile) info.push(`📞 Mobile: ${item.mobile}`);
+            if (item.phone) info.push(`📱 Phone: ${item.phone}`);
+            
+            if (info.length > 0) return info.join('\n');
+        }
+        
+        // 4. Check for {info} pattern
+        const str = JSON.stringify(data);
+        const infoMatch = str.match(/\{info\}(.*?)\{\/info\}/i);
+        if (infoMatch && infoMatch[1]) {
+            return infoMatch[1].trim();
+        }
+        
+        // 5. Direct fields se info
+        const important = {};
+        if (data.name) important['👤 Name'] = data.name;
+        if (data.father_name) important['👨 Father'] = data.father_name;
+        if (data.address) important['📍 Address'] = data.address;
+        if (data.mobile) important['📞 Mobile'] = data.mobile;
+        if (data.phone) important['📱 Phone'] = data.phone;
+        if (data.owner) important['👑 Owner'] = data.owner;
+        if (data.number) important['📞 Number'] = data.number;
+        if (data.family) important['👨‍👩‍👧 Family'] = data.family;
+        
+        if (Object.keys(important).length > 0) {
+            return Object.entries(important).map(([k, v]) => `${k}: ${v}`).join('\n');
+        }
+        
+        // 6. Error
+        if (data.error) return `⚠️ ${data.error}`;
+        
+        // 7. Last option: trimmed JSON
+        let result = JSON.stringify(data, null, 2);
+        if (result.length > 450) {
+            result = result.substring(0, 450) + '\n... [truncated]';
+        }
+        return result;
+    }
+    
+    // ========== SEARCH FUNCTION ==========
     async function performSearch() {
         if (!currentTool) {
             alert('Select a tool first!');
@@ -697,7 +764,6 @@
         const config = API_CONFIG[currentTool];
         const originalUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
         
-        // Try multiple proxies
         for (let i = 0; i < CORS_PROXIES.length; i++) {
             try {
                 const proxiedUrl = CORS_PROXIES[i] + encodeURIComponent(originalUrl);
@@ -716,33 +782,11 @@
                     return;
                 }
             } catch (err) {
-                console.log(`Proxy ${i} failed, trying next...`);
+                console.log(`Proxy ${i} failed`);
             }
         }
         
-        showResult('All proxies failed. API may be down. Try again later.', true);
-    }
-    
-    function extractInfo(data) {
-        if (!data) return 'No data received';
-        if (data.info) return data.info;
-        if (data.message) return data.message;
-        
-        const str = JSON.stringify(data);
-        const match = str.match(/\{info\}(.*?)\{\/info\}/i) || str.match(/"info"\s*:\s*"([^"]+)"/i);
-        if (match) return match[1];
-        
-        const important = {};
-        if (data.owner) important.Owner = data.owner;
-        if (data.number) important.Number = data.number;
-        if (data.phone) important.Phone = data.phone;
-        if (data.family) important.Family = data.family;
-        if (data.error) return `⚠️ ${data.error}`;
-        
-        if (Object.keys(important).length) {
-            return Object.entries(important).map(([k,v]) => `${k}: ${v}`).join('\n');
-        }
-        return JSON.stringify(data, null, 2).substring(0, 400);
+        showResult('⚠️ API unreachable. Try again later.', true);
     }
     
     function showResult(content, isError) {
@@ -750,7 +794,7 @@
         if (isError) {
             resultDiv.innerHTML = `<div style="color: #f97316;">⚠️ ${escapeHtml(content)}</div>`;
         } else {
-            resultDiv.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
+            resultDiv.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.6;">${escapeHtml(content)}</div>`;
         }
     }
     
@@ -769,7 +813,7 @@
         if (e.target === this) closeTool();
     });
     
-    console.log('%c🕷️ SpideyOSINT | Password: spidey123 | Telegram Popup Har Baar | PC + Mobile Ready', 'color: #0F766E; font-size: 14px');
+    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | Smart Data Extraction Active', 'color: #0F766E; font-size: 14px');
 </script>
 </body>
 </html>
