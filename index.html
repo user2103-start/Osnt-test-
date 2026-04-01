@@ -313,7 +313,7 @@
         .tool-card {
             background: var(--card-bg);
             border-radius: 36px;
-            max-width: 650px;
+            max-width: 700px;
             width: 100%;
             max-height: 85vh;
             overflow-y: auto;
@@ -405,7 +405,7 @@
             border-radius: 24px;
             padding: 18px;
             margin-top: 15px;
-            min-height: 140px;
+            min-height: 160px;
         }
 
         .result-title {
@@ -414,8 +414,8 @@
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            margin-bottom: 10px;
-            font-size: 0.65rem;
+            margin-bottom: 12px;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -426,7 +426,7 @@
             font-size: 13px;
             white-space: pre-wrap;
             word-break: break-word;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .loading {
@@ -633,7 +633,6 @@
         searchInput.value = '';
         overlay.style.display = 'flex';
         
-        // Telegram Popup - Har baar aayega
         showTelegramPopup();
     }
     
@@ -659,7 +658,7 @@
         
         modal.innerHTML = `
             <div style="background: var(--card-bg); padding: 28px 22px; border-radius: 40px; max-width: 350px; width: 100%; text-align: center; border: 2px solid #22D3EE;">
-                                <h3 style="background: linear-gradient(135deg, #0F766E, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px; font-size: 1.4rem;">📢 JOIN SPIDEY OSINT</h3>
+                <h3 style="background: linear-gradient(135deg, #0F766E, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px; font-size: 1.4rem;">📢 JOIN SPIDEY OSINT</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Exclusive tools • API updates • Intelligence feeds</p>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button id="popupJoinBtn" style="background: linear-gradient(135deg,#0F766E,#22D3EE); color:white; border:none; padding: 12px 28px; border-radius: 40px; cursor:pointer; font-weight:bold;">Join Now 🔥</button>
@@ -678,72 +677,99 @@
         modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     }
     
-    // ========== SMART EXTRACT INFO FUNCTION ==========
-    function extractInfo(data) {
+    // ========== SMART EXTRACT INFO FUNCTION - ACCORDING TO YOUR REQUIREMENTS ==========
+    function extractInfo(data, apiType) {
         if (!data) return 'No data received';
         
-        // 1. Agar direct info field hai
-        if (data.info) return data.info;
-        if (data.message) return data.message;
+        let output = [];
         
-        // 2. Agar result array hai (jaise screenshot me dikha)
-        if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-            const item = data.result[0];
-            let info = [];
-            if (item.name) info.push(`👤 Name: ${item.name}`);
-            if (item.father_name) info.push(`👨 Father: ${item.father_name}`);
-            if (item.address) info.push(`📍 Address: ${item.address}`);
-            if (item.mobile) info.push(`📞 Mobile: ${item.mobile}`);
-            if (item.phone) info.push(`📱 Phone: ${item.phone}`);
-            if (item.circle) info.push(`🔄 Circle: ${item.circle}`);
+        // ==================== AADHAAR FAMILY API ====================
+        if (apiType === 'family') {
+            // Sirf pd object ke andar ka data
+            if (data.result && data.result.pd) {
+                const pd = data.result.pd;
+                
+                // Address
+                if (pd.address) {
+                    output.push(`📍 Address: ${pd.address}`);
+                    output.push('');
+                }
+                
+                // Member Details List
+                if (pd.memberDetailsList && Array.isArray(pd.memberDetailsList) && pd.memberDetailsList.length > 0) {
+                    output.push(`👨‍👩‍👧 FAMILY MEMBERS:`);
+                    output.push(`─────────────────`);
+                    pd.memberDetailsList.forEach((member, index) => {
+                        output.push(`${index + 1}. ${member.memberName}`);
+                        if (member.releationship_name) {
+                            output.push(`   └─ ${member.releationship_name}`);
+                        }
+                        output.push('');
+                    });
+                }
+            }
             
-            if (info.length > 0) return info.join('\n');
+            if (output.length === 0 && data.result && data.result.rd === "Success") {
+                output.push('✅ Data fetched successfully, but no family details found.');
+            }
         }
         
-        // 3. Agar result object directly hai
-        if (data.result && typeof data.result === 'object' && !Array.isArray(data.result)) {
-            const item = data.result;
-            let info = [];
-            if (item.name) info.push(`👤 Name: ${item.name}`);
-            if (item.father_name) info.push(`👨 Father: ${item.father_name}`);
-            if (item.address) info.push(`📍 Address: ${item.address}`);
-            if (item.mobile) info.push(`📞 Mobile: ${item.mobile}`);
-            if (item.phone) info.push(`📱 Phone: ${item.phone}`);
+        // ==================== TG TO NUMBER API ====================
+        else if (apiType === 'telegram') {
+            // Sirf result object ke andar ka data
+            if (data.result && typeof data.result === 'object') {
+                const res = data.result;
+                if (res.success !== undefined) output.push(`✅ Status: ${res.success ? 'Success' : 'Failed'}`);
+                if (res.msg) output.push(`📝 Message: ${res.msg}`);
+                if (res.tg_id) output.push(`🆔 Telegram ID: ${res.tg_id}`);
+                if (res.country) output.push(`🌍 Country: ${res.country}`);
+                if (res.country_code) output.push(`📞 Country Code: ${res.country_code}`);
+                if (res.number) output.push(`📱 Phone Number: ${res.country_code || ''}${res.number}`);
+            }
+        }
+        
+        // ==================== NUMBER INFO API ====================
+        else if (apiType === 'number') {
+            // Sirf result array ke andar ka data, example ke tarah format mein
+            if (data.result && Array.isArray(data.result) && data.result.length > 0) {
+                data.result.forEach((item, index) => {
+                    output.push(`📍 ITEM ${index + 1}:`);
+                    if (item.name) output.push(`  🔹 Name: ${item.name}`);
+                    if (item.father_name) output.push(`  🔹 Father Name: ${item.father_name}`);
+                    if (item.address) output.push(`  🔹 Address: ${item.address}`);
+                    if (item.circle) output.push(`  🔹 Circle: ${item.circle}`);
+                    if (item.mobile) output.push(`  🔹 Mobile: ${item.mobile}`);
+                    if (item.alternate) output.push(`  🔹 Alternate: ${item.alternate}`);
+                    if (item.email) output.push(`  🔹 Email: ${item.email}`);
+                    if (item.id) output.push(`  🔹 ID: ${item.id}`);
+                    output.push('');
+                });
+            } else if (data.result && typeof data.result === 'object') {
+                // Single result case
+                const item = data.result;
+                if (item.name) output.push(`🔹 Name: ${item.name}`);
+                if (item.father_name) output.push(`🔹 Father Name: ${item.father_name}`);
+                if (item.address) output.push(`🔹 Address: ${item.address}`);
+                if (item.circle) output.push(`🔹 Circle: ${item.circle}`);
+                if (item.mobile) output.push(`🔹 Mobile: ${item.mobile}`);
+            }
+        }
+        
+        // Agar kuch bhi nahi mila to fallback
+        if (output.length === 0) {
+            // Check for direct fields
+            if (data.name) output.push(`👤 Name: ${data.name}`);
+            if (data.father_name) output.push(`👨 Father: ${data.father_name}`);
+            if (data.address) output.push(`📍 Address: ${data.address}`);
+            if (data.mobile) output.push(`📞 Mobile: ${data.mobile}`);
+            if (data.phone) output.push(`📱 Phone: ${data.phone}`);
             
-            if (info.length > 0) return info.join('\n');
+            if (output.length === 0) {
+                return 'No relevant data found in API response';
+            }
         }
         
-        // 4. Check for {info} pattern
-        const str = JSON.stringify(data);
-        const infoMatch = str.match(/\{info\}(.*?)\{\/info\}/i);
-        if (infoMatch && infoMatch[1]) {
-            return infoMatch[1].trim();
-        }
-        
-        // 5. Direct fields se info
-        const important = {};
-        if (data.name) important['👤 Name'] = data.name;
-        if (data.father_name) important['👨 Father'] = data.father_name;
-        if (data.address) important['📍 Address'] = data.address;
-        if (data.mobile) important['📞 Mobile'] = data.mobile;
-        if (data.phone) important['📱 Phone'] = data.phone;
-        if (data.owner) important['👑 Owner'] = data.owner;
-        if (data.number) important['📞 Number'] = data.number;
-        if (data.family) important['👨‍👩‍👧 Family'] = data.family;
-        
-        if (Object.keys(important).length > 0) {
-            return Object.entries(important).map(([k, v]) => `${k}: ${v}`).join('\n');
-        }
-        
-        // 6. Error
-        if (data.error) return `⚠️ ${data.error}`;
-        
-        // 7. Last option: trimmed JSON
-        let result = JSON.stringify(data, null, 2);
-        if (result.length > 450) {
-            result = result.substring(0, 450) + '\n... [truncated]';
-        }
-        return result;
+        return output.join('\n');
     }
     
     // ========== SEARCH FUNCTION ==========
@@ -768,7 +794,7 @@
             try {
                 const proxiedUrl = CORS_PROXIES[i] + encodeURIComponent(originalUrl);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
                 const response = await fetch(proxiedUrl, { 
                     signal: controller.signal,
                     headers: { 'Accept': 'application/json' }
@@ -777,16 +803,16 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const extracted = extractInfo(data);
+                    const extracted = extractInfo(data, currentTool);
                     showResult(extracted, false);
                     return;
                 }
             } catch (err) {
-                console.log(`Proxy ${i} failed`);
+                console.log(`Proxy ${i} failed:`, err.message);
             }
         }
         
-        showResult('⚠️ API unreachable. Try again later.', true);
+        showResult('⚠️ API unreachable. The API server may be down or blocking requests. Try again later.', true);
     }
     
     function showResult(content, isError) {
