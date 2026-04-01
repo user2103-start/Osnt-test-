@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>SpideyOSINT | Cyber Intelligence Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-1: #0F766E;
+            --primary-2: #22D3EE;
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --border-light: #e2e8f0;
+            --input-bg: #ffffff;
+            --result-bg: #f8fafc;
+            --shadow: 0 20px 40px -12px rgba(0,0,0,0.2);
+        }
+
+        body.dark {
+            --card-bg: rgba(15, 23, 42, 0.95);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-light: #334155;
+            --input-bg: #1e293b;
+            --result-bg: #0f172a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body.dark {
+            background: linear-gradient(135deg, #0a0c1a, #0f172a);
+        }
+
+        /* Password Screen */
+        .password-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        body.dark .password-screen {
+            background: linear-gradient(135deg, #0a0c1a, #0f172a);
+        }
+
+        .password-box {
+            background: var(--card-bg);
+            padding: 35px 25px;
+            border-radius: 48px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            box-shadow: var(--shadow);
+        }
+
+        .password-box h2 {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .password-box p {
+            color: var(--text-secondary);
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--border-light);
+            border-radius: 60px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .password-input:focus {
+            border-color: #22D3EE;
+        }
+
+        .password-btn {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 60px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .error-msg {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fee2e2;
+            border-radius: 20px;
+            color: #991b1b;
+            font-size: 12px;
+            display: none;
+        }
+
+        body.dark .error-msg {
+            background: #2d1f1f;
+            color: #f87171;
+        }
+
+        .telegram-hint {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-light);
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .telegram-hint a {
+            color: #0F766E;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        body.dark .telegram-hint a {
+            color: #22D3EE;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: none;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 15px 20px;
+            background: var(--card-bg);
+            border-radius: 32px;
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            box-shadow: var(--shadow);
+        }
+
+        .logo-area h1 {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1.6rem;
+        }
+
+        .logo-area p {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        .theme-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--result-bg);
+            padding: 5px 12px;
+            border-radius: 40px;
+        }
+
+        .switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            border-radius: 34px;
+            transition: 0.3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "☀️";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            transition: 0.3s;
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(23px);
+            content: "🌙";
+        }
+
+        /* Menu Cards */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .menu-card {
+            background: var(--card-bg);
+            border-radius: 28px;
+            padding: 30px 20px;
+            cursor: pointer;
+            text-align: center;
+            border: 1px solid rgba(34, 211, 238, 0.4);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .menu-card:hover {
+            transform: translateY(-5px);
+            border-color: #22D3EE;
+            box-shadow: 0 20px 35px -12px rgba(15, 118, 110, 0.4);
+        }
+
+        .menu-card:active {
+            transform: scale(0.98);
+        }
+
+        .menu-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .menu-card h3 {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+
+        .menu-card p {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* Tool Overlay */
+        .tool-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border-radius: 36px;
+            max-width: 650px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 25px;
+            border: 2px solid #22D3EE;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .tool-header h2 {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1.4rem;
+        }
+
+        .close-tool {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 22px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .search-area {
+            background: var(--result-bg);
+            padding: 20px;
+            border-radius: 28px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid var(--border-light);
+            border-radius: 60px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #22D3EE;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 60px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .result-box {
+            background: var(--result-bg);
+            border-radius: 24px;
+            padding: 18px;
+            margin-top: 15px;
+            min-height: 140px;
+        }
+
+        .result-title {
+            font-weight: bold;
+            background: linear-gradient(135deg, #0F766E, #22D3EE);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .result-content {
+            color: var(--text-primary);
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .loading {
+            color: #22D3EE;
+            text-align: center;
+            padding: 15px;
+        }
+
+        @media (max-width: 550px) {
+            .tool-card {
+                padding: 18px;
+            }
+            .input-group {
+                flex-direction: column;
+            }
+            .search-btn {
+                width: 100%;
+            }
+            .menu-card {
+                padding: 22px 15px;
+            }
+            .menu-icon {
+                font-size: 2.5rem;
+            }
+            .header-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            .password-box {
+                padding: 25px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Password Screen -->
+<div class="password-screen" id="passwordScreen">
+    <div class="password-box">
+        <h2>🕷️ SpideyOSINT</h2>
+        <p>🔐 Enter Password to Access Arsenal</p>
+        <input type="password" id="passwordInput" class="password-input" placeholder="Password" autocomplete="off">
+        <button class="password-btn" onclick="checkPassword()">⚡ Unlock ⚡</button>
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="telegram-hint">
+            💡 <strong>Need Password?</strong><br>
+            👉 <a href="https://t.me/+skVu9tSSuccyYTQ1" target="_blank">Join Telegram Channel</a> • Check PIN Comment
+        </div>
+    </div>
+</div>
+
+<!-- Main Dashboard -->
+<div class="main-content" id="mainContent">
+    <div class="container">
+        <div class="header-section">
+            <div class="logo-area">
+                <h1>🕷️ SpideyOSINT</h1>
+                <p>// Next-Gen Intelligence Framework //</p>
+            </div>
+            <div class="theme-switch">
+                <span>🌞</span>
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>🌙</span>
+            </div>
+        </div>
+
+        <div class="menu-grid">
+            <div class="menu-card" onclick="openTool('number')">
+                <div class="menu-icon">📱</div>
+                <h3>Number to Info</h3>
+                <p>Carrier • Location • Intelligence</p>
+            </div>
+            <div class="menu-card" onclick="openTool('family')">
+                <div class="menu-icon">🆔</div>
+                <h3>Aadhaar → Family Info</h3>
+                <p>Family Linkage • Ration Data</p>
+            </div>
+            <div class="menu-card" onclick="openTool('telegram')">
+                <div class="menu-icon">✈️</div>
+                <h3>TG ID → Number</h3>
+                <p>Telegram to Mobile Resolver</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tool Overlay -->
+<div class="tool-overlay" id="toolOverlay">
+    <div class="tool-card">
+        <div class="tool-header">
+            <h2 id="toolTitle">Tool</h2>
+            <button class="close-tool" onclick="closeTool()">✕ Close</button>
+        </div>
+        <div class="search-area">
+            <div class="input-group">
+                <input type="text" id="searchInput" placeholder="Enter value...">
+                <button class="search-btn" id="searchBtn" onclick="performSearch()">🔍 Search</button>
+            </div>
+            <div class="result-box">
+                <div class="result-title">📡 OUTPUT DATA</div>
+                <div class="result-content" id="resultContent">// Ready //</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== PASSWORD ==========
+    const CORRECT_PASSWORD = "spidey123";
+    
+    function checkPassword() {
+        const entered = document.getElementById('passwordInput').value;
+        const errorDiv = document.getElementById('errorMsg');
+        
+        if (entered === CORRECT_PASSWORD) {
+            document.getElementById('passwordScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            errorDiv.style.display = 'none';
+            startMusic();
+        } else {
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `😆 "Arre bhai! Wrong password! Channel join karle pehle!" 😜<br><br>👉 <a href="https://t.me/+skVu9tSSuccyYTQ1" target="_blank" style="color:#0F766E;">Join Telegram Channel</a> for correct password!`;
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('passwordInput').focus();
+        }
+    }
+    
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkPassword();
+    });
+    
+    // ========== BACKGROUND MUSIC - FULL VOLUME, NO CONTROL ==========
+    let bgAudio = null;
+    let musicStarted = false;
+    
+    function startMusic() {
+        if (musicStarted) return;
+        bgAudio = new Audio('https://files.catbox.moe/suk6f6.m4a');
+        bgAudio.loop = true;
+        bgAudio.volume = 1.0;
+        bgAudio.play().catch(e => console.log('Auto-play blocked'));
+        musicStarted = true;
+        
+        // Retry on any user click if not playing
+        document.body.addEventListener('click', function forcePlay() {
+            if (bgAudio && bgAudio.paused) {
+                bgAudio.play().catch(e => {});
+            }
+        });
+    }
+    
+    // ========== DARK MODE ==========
+    const darkToggle = document.getElementById('darkModeToggle');
+    darkToggle.addEventListener('change', function() {
+        if (this.checked) {
+            document.body.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.body.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    });
+    
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark');
+        darkToggle.checked = true;
+    }
+    
+    // ========== API CONFIG with MULTIPLE CORS PROXY BACKUP ==========
+    const CORS_PROXIES = [
+        'https://corsproxy.io/?',
+        'https://api.allorigins.win/raw?url=',
+        'https://cors-anywhere.herokuapp.com/'
+    ];
+    let currentProxyIndex = 0;
+    
+    const API_CONFIG = {
+        number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number' },
+        family: { url: 'https://ayaanmods.site/family.php', key: 'annonymousfamily', paramName: 'term' },
+        telegram: { url: 'https://ayaanmods.site/tg2num.php', key: 'annonymoustgtonum', paramName: 'id' }
+    };
+    
+    let currentTool = null;
+    
+    function openTool(tool) {
+        currentTool = tool;
+        const overlay = document.getElementById('toolOverlay');
+        const toolTitle = document.getElementById('toolTitle');
+        const searchInput = document.getElementById('searchInput');
+        
+        if (tool === 'number') {
+            toolTitle.innerHTML = '📱 Number to Info';
+            searchInput.placeholder = 'Enter phone number (e.g., +919876543210)';
+        } else if (tool === 'family') {
+            toolTitle.innerHTML = '🆔 Aadhaar → Family Info';
+            searchInput.placeholder = 'Enter Aadhaar / Ration Card number';
+        } else if (tool === 'telegram') {
+            toolTitle.innerHTML = '✈️ Telegram ID → Number';
+            searchInput.placeholder = 'Enter Telegram ID (numeric or @username)';
+        }
+        
+        document.getElementById('resultContent').innerHTML = '// Ready to search //';
+        searchInput.value = '';
+        overlay.style.display = 'flex';
+        
+        // ========== HAR BAAR TELEGRAM POPUP ==========
+        showTelegramPopup();
+    }
+    
+    function closeTool() {
+        document.getElementById('toolOverlay').style.display = 'none';
+        currentTool = null;
+    }
+    
+    function showTelegramPopup() {
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.9)';
+        modal.style.backdropFilter = 'blur(8px)';
+        modal.style.zIndex = '2000';
+        modal.style.display = 'flex';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.padding = '20px';
+        
+        modal.innerHTML = `
+            <div style="background: var(--card-bg); padding: 28px 22px; border-radius: 40px; max-width: 350px; width: 100%; text-align: center; border: 2px solid #22D3EE;">
+                <h3 style="background: linear-gradient(135deg, #0F766E, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px; font-size: 1.4rem;">📢 JOIN SPIDEY OSINT</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Exclusive tools • API updates • Intelligence feeds</p>
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                    <button id="popupJoinBtn" style="background: linear-gradient(135deg,#0F766E,#22D3EE); color:white; border:none; padding: 12px 28px; border-radius: 40px; cursor:pointer; font-weight:bold;">Join Now 🔥</button>
+                    <button id="popupLaterBtn" style="background: transparent; border:2px solid #22D3EE; color:#22D3EE; padding: 12px 28px; border-radius: 40px; cursor:pointer;">Later</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        document.getElementById('popupJoinBtn').onclick = () => {
+            window.open('https://t.me/+skVu9tSSuccyYTQ1', '_blank');
+            modal.remove();
+        };
+        document.getElementById('popupLaterBtn').onclick = () => modal.remove();
+        modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    }
+    
+    // ========== SEARCH FUNCTION with PROXY ROTATION ==========
+    async function performSearch() {
+        if (!currentTool) {
+            alert('Select a tool first!');
+            return;
+        }
+        
+        const query = document.getElementById('searchInput').value.trim();
+        if (!query) {
+            showResult('Please enter a value', true);
+            return;
+        }
+        
+        showResult('<div class="loading">🕸️ Fetching intel...</div>', false);
+        
+        const config = API_CONFIG[currentTool];
+        const originalUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
+        
+        // Try multiple proxies
+        for (let i = 0; i < CORS_PROXIES.length; i++) {
+            try {
+                const proxiedUrl = CORS_PROXIES[i] + encodeURIComponent(originalUrl);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                const response = await fetch(proxiedUrl, { 
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const extracted = extractInfo(data);
+                    showResult(extracted, false);
+                    return;
+                }
+            } catch (err) {
+                console.log(`Proxy ${i} failed, trying next...`);
+            }
+        }
+        
+        showResult('All proxies failed. API may be down. Try again later.', true);
+    }
+    
+    function extractInfo(data) {
+        if (!data) return 'No data received';
+        if (data.info) return data.info;
+        if (data.message) return data.message;
+        
+        const str = JSON.stringify(data);
+        const match = str.match(/\{info\}(.*?)\{\/info\}/i) || str.match(/"info"\s*:\s*"([^"]+)"/i);
+        if (match) return match[1];
+        
+        const important = {};
+        if (data.owner) important.Owner = data.owner;
+        if (data.number) important.Number = data.number;
+        if (data.phone) important.Phone = data.phone;
+        if (data.family) important.Family = data.family;
+        if (data.error) return `⚠️ ${data.error}`;
+        
+        if (Object.keys(important).length) {
+            return Object.entries(important).map(([k,v]) => `${k}: ${v}`).join('\n');
+        }
+        return JSON.stringify(data, null, 2).substring(0, 400);
+    }
+    
+    function showResult(content, isError) {
+        const resultDiv = document.getElementById('resultContent');
+        if (isError) {
+            resultDiv.innerHTML = `<div style="color: #f97316;">⚠️ ${escapeHtml(content)}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
+        }
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            return m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;';
+        });
+    }
+    
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') performSearch();
+    });
+    
+    document.getElementById('toolOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeTool();
+    });
+    
+    console.log('%c🕷️ SpideyOSINT | Password: spidey123 | Telegram Popup Har Baar | PC + Mobile Ready', 'color: #0F766E; font-size: 14px');
+</script>
+</body>
+</html>
