@@ -313,7 +313,7 @@
         .tool-card {
             background: var(--card-bg);
             border-radius: 36px;
-            max-width: 700px;
+            max-width: 750px;
             width: 100%;
             max-height: 85vh;
             overflow-y: auto;
@@ -405,7 +405,9 @@
             border-radius: 24px;
             padding: 18px;
             margin-top: 15px;
-            min-height: 160px;
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
         }
 
         .result-title {
@@ -432,7 +434,24 @@
         .loading {
             color: #22D3EE;
             text-align: center;
-            padding: 15px;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #22D3EE;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         @media (max-width: 550px) {
@@ -623,7 +642,7 @@
             searchInput.placeholder = 'Enter phone number (e.g., +919876543210)';
         } else if (tool === 'family') {
             toolTitle.innerHTML = '🆔 Aadhaar → Family Info';
-            searchInput.placeholder = 'Enter Aadhaar / Ration Card number';
+            searchInput.placeholder = 'Enter Aadhaar / Ration Card number (12 digits)';
         } else if (tool === 'telegram') {
             toolTitle.innerHTML = '✈️ Telegram ID → Number';
             searchInput.placeholder = 'Enter Telegram ID (numeric or @username)';
@@ -677,99 +696,127 @@
         modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     }
     
-    // ========== SMART EXTRACT INFO FUNCTION - ACCORDING TO YOUR REQUIREMENTS ==========
-    function extractInfo(data, apiType) {
-        if (!data) return 'No data received';
-        
+    // ========== FORMAT FUNCTIONS - NO PURCHASE HISTORY ==========
+    
+    function formatFamilyData(data) {
         let output = [];
         
-        // ==================== AADHAAR FAMILY API ====================
-        if (apiType === 'family') {
-            // Sirf pd object ke andar ka data
-            if (data.result && data.result.pd) {
-                const pd = data.result.pd;
-                
-                // Address
-                if (pd.address) {
-                    output.push(`📍 Address: ${pd.address}`);
-                    output.push('');
-                }
-                
-                // Member Details List
-                if (pd.memberDetailsList && Array.isArray(pd.memberDetailsList) && pd.memberDetailsList.length > 0) {
-                    output.push(`👨‍👩‍👧 FAMILY MEMBERS:`);
-                    output.push(`─────────────────`);
-                    pd.memberDetailsList.forEach((member, index) => {
-                        output.push(`${index + 1}. ${member.memberName}`);
-                        if (member.releationship_name) {
-                            output.push(`   └─ ${member.releationship_name}`);
-                        }
-                        output.push('');
-                    });
-                }
+        if (data.result && data.result.pd) {
+            const pd = data.result.pd;
+            
+            // Address
+            if (pd.address) {
+                output.push(`📍 ADDRESS:`);
+                output.push(`${pd.address}`);
+                output.push('');
             }
             
-            if (output.length === 0 && data.result && data.result.rd === "Success") {
-                output.push('✅ Data fetched successfully, but no family details found.');
+            // Ration Card Details
+            if (pd.rcId) {
+                output.push(`📇 Ration Card ID: ${pd.rcId}`);
             }
-        }
-        
-        // ==================== TG TO NUMBER API ====================
-        else if (apiType === 'telegram') {
-            // Sirf result object ke andar ka data
-            if (data.result && typeof data.result === 'object') {
-                const res = data.result;
-                if (res.success !== undefined) output.push(`✅ Status: ${res.success ? 'Success' : 'Failed'}`);
-                if (res.msg) output.push(`📝 Message: ${res.msg}`);
-                if (res.tg_id) output.push(`🆔 Telegram ID: ${res.tg_id}`);
-                if (res.country) output.push(`🌍 Country: ${res.country}`);
-                if (res.country_code) output.push(`📞 Country Code: ${res.country_code}`);
-                if (res.number) output.push(`📱 Phone Number: ${res.country_code || ''}${res.number}`);
+            if (pd.schemeName) {
+                output.push(`🏷️ Scheme: ${pd.schemeName}`);
             }
-        }
-        
-        // ==================== NUMBER INFO API ====================
-        else if (apiType === 'number') {
-            // Sirf result array ke andar ka data, example ke tarah format mein
-            if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-                data.result.forEach((item, index) => {
-                    output.push(`📍 ITEM ${index + 1}:`);
-                    if (item.name) output.push(`  🔹 Name: ${item.name}`);
-                    if (item.father_name) output.push(`  🔹 Father Name: ${item.father_name}`);
-                    if (item.address) output.push(`  🔹 Address: ${item.address}`);
-                    if (item.circle) output.push(`  🔹 Circle: ${item.circle}`);
-                    if (item.mobile) output.push(`  🔹 Mobile: ${item.mobile}`);
-                    if (item.alternate) output.push(`  🔹 Alternate: ${item.alternate}`);
-                    if (item.email) output.push(`  🔹 Email: ${item.email}`);
-                    if (item.id) output.push(`  🔹 ID: ${item.id}`);
-                    output.push('');
+            if (pd.homeStateName && pd.homeDistName) {
+                output.push(`📍 Location: ${pd.homeDistName}, ${pd.homeStateName}`);
+            }
+            output.push('');
+            
+            // FAMILY MEMBERS SECTION
+            if (pd.memberDetailsList && Array.isArray(pd.memberDetailsList) && pd.memberDetailsList.length > 0) {
+                output.push(`👨‍👩‍👧 FAMILY MEMBERS (${pd.memberDetailsList.length} members):`);
+                output.push(`─────────────────────────────────`);
+                pd.memberDetailsList.forEach((member, index) => {
+                    let memberLine = `${index + 1}. ${member.memberName}`;
+                    if (member.releationship_name) {
+                        memberLine += ` [${member.releationship_name}]`;
+                    }
+                    output.push(memberLine);
                 });
-            } else if (data.result && typeof data.result === 'object') {
-                // Single result case
-                const item = data.result;
-                if (item.name) output.push(`🔹 Name: ${item.name}`);
-                if (item.father_name) output.push(`🔹 Father Name: ${item.father_name}`);
-                if (item.address) output.push(`🔹 Address: ${item.address}`);
-                if (item.circle) output.push(`🔹 Circle: ${item.circle}`);
-                if (item.mobile) output.push(`🔹 Mobile: ${item.mobile}`);
+                output.push('');
+            } else {
+                output.push(`👨‍👩‍👧 FAMILY MEMBERS: No member details found`);
+                output.push('');
             }
         }
         
-        // Agar kuch bhi nahi mila to fallback
         if (output.length === 0) {
-            // Check for direct fields
-            if (data.name) output.push(`👤 Name: ${data.name}`);
-            if (data.father_name) output.push(`👨 Father: ${data.father_name}`);
-            if (data.address) output.push(`📍 Address: ${data.address}`);
-            if (data.mobile) output.push(`📞 Mobile: ${data.mobile}`);
-            if (data.phone) output.push(`📱 Phone: ${data.phone}`);
-            
-            if (output.length === 0) {
-                return 'No relevant data found in API response';
+            if (data.result && data.result.rd === "Success") {
+                return '✅ Data fetched successfully, but no family details found.';
             }
+            return 'No family data found for this Aadhaar/Ration number.';
         }
         
         return output.join('\n');
+    }
+    
+    function formatTgData(data) {
+        let output = [];
+        
+        if (data.result && typeof data.result === 'object') {
+            const res = data.result;
+            if (res.success !== undefined) output.push(`✅ Status: ${res.success ? 'Success' : 'Failed'}`);
+            if (res.tg_id) output.push(`🆔 Telegram ID: ${res.tg_id}`);
+            if (res.country) output.push(`🌍 Country: ${res.country}`);
+            if (res.number) {
+                const fullNumber = (res.country_code || '') + res.number;
+                output.push(`📱 Phone Number: ${fullNumber}`);
+            }
+            if (res.msg && res.msg !== 'Details fetched') output.push(`📝 ${res.msg}`);
+        }
+        
+        if (output.length === 0) return 'No data found for this Telegram ID.';
+        return output.join('\n');
+    }
+    
+    function formatNumberData(data) {
+        let output = [];
+        
+        if (data.result && Array.isArray(data.result) && data.result.length > 0) {
+            data.result.forEach((item, index) => {
+                output.push(`📍 ITEM ${index + 1}:`);
+                if (item.name) output.push(`  🔹 Name: ${item.name}`);
+                if (item.father_name) output.push(`  🔹 Father Name: ${item.father_name}`);
+                if (item.address) output.push(`  🔹 Address: ${item.address}`);
+                if (item.circle) output.push(`  🔹 Circle: ${item.circle}`);
+                if (item.mobile) output.push(`  🔹 Mobile: ${item.mobile}`);
+                if (item.alternate) output.push(`  🔹 Alternate: ${item.alternate}`);
+                if (item.email) output.push(`  🔹 Email: ${item.email}`);
+                if (item.id) output.push(`  🔹 ID: ${item.id}`);
+                output.push('');
+            });
+        } else if (data.result && typeof data.result === 'object') {
+            const item = data.result;
+            if (item.name) output.push(`🔹 Name: ${item.name}`);
+            if (item.father_name) output.push(`🔹 Father Name: ${item.father_name}`);
+            if (item.address) output.push(`🔹 Address: ${item.address}`);
+            if (item.circle) output.push(`🔹 Circle: ${item.circle}`);
+            if (item.mobile) output.push(`🔹 Mobile: ${item.mobile}`);
+        }
+        
+        if (output.length === 0) return 'No data found for this number.';
+        return output.join('\n');
+    }
+    
+    function extractInfo(data, apiType) {
+        if (!data) return 'No data received';
+        if (data.error) return `⚠️ Error: ${data.error}`;
+        
+        try {
+            if (apiType === 'family') {
+                return formatFamilyData(data);
+            } else if (apiType === 'telegram') {
+                return formatTgData(data);
+            } else if (apiType === 'number') {
+                return formatNumberData(data);
+            }
+        } catch (e) {
+            console.error('Formatting error:', e);
+            return 'Error formatting data. Raw response received but parsing failed.';
+        }
+        
+        return 'Data received but no relevant information found.';
     }
     
     // ========== SEARCH FUNCTION ==========
@@ -785,7 +832,7 @@
             return;
         }
         
-        showResult('<div class="loading">🕸️ Fetching intel...</div>', false);
+        showResult('<div class="loading"><span class="loading-spinner"></span> Fetching intel... Please wait</div>', false);
         
         const config = API_CONFIG[currentTool];
         const originalUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
@@ -794,7 +841,7 @@
             try {
                 const proxiedUrl = CORS_PROXIES[i] + encodeURIComponent(originalUrl);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
                 const response = await fetch(proxiedUrl, { 
                     signal: controller.signal,
                     headers: { 'Accept': 'application/json' }
@@ -812,7 +859,7 @@
             }
         }
         
-        showResult('⚠️ API unreachable. The API server may be down or blocking requests. Try again later.', true);
+        showResult('⚠️ Request timeout or API unreachable. Try again or check your network.', true);
     }
     
     function showResult(content, isError) {
@@ -839,7 +886,7 @@
         if (e.target === this) closeTool();
     });
     
-    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | Smart Data Extraction Active', 'color: #0F766E; font-size: 14px');
+    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | No Purchase History - Only Family Members', 'color: #0F766E; font-size: 14px');
 </script>
 </body>
 </html>
