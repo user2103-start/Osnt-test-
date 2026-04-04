@@ -454,6 +454,20 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Debug Console */
+        .debug-console {
+            margin-top: 15px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            font-size: 10px;
+            font-family: monospace;
+            color: #0f0;
+            max-height: 100px;
+            overflow-y: auto;
+            display: none;
+        }
+
         @media (max-width: 550px) {
             .tool-card {
                 padding: 18px;
@@ -551,6 +565,7 @@
                 <div class="result-title">📡 OUTPUT DATA</div>
                 <div class="result-content" id="resultContent">// Ready //</div>
             </div>
+            <div class="debug-console" id="debugConsole"></div>
         </div>
     </div>
 </div>
@@ -616,17 +631,11 @@
         darkToggle.checked = true;
     }
     
-    // ========== API CONFIG with CORS PROXY ==========
-    const CORS_PROXIES = [
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url=',
-        'https://cors-anywhere.herokuapp.com/'
-    ];
-    
+    // ========== API CONFIG ==========
     const API_CONFIG = {
-        number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number' },
-        family: { url: 'https://ayaanmods.site/family.php', key: 'annonymousfamily', paramName: 'term' },
-        telegram: { url: 'https://ayaanmods.site/tg2num.php', key: 'annonymoustgtonum', paramName: 'id' }
+        number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number', name: 'Number Info' },
+        family: { url: 'https://ayaanmods.site/family.php', key: 'annonymousfamily', paramName: 'term', name: 'Aadhaar Family' },
+        telegram: { url: 'https://ayaanmods.site/tg2num.php', key: 'annonymoustgtonum', paramName: 'id', name: 'TG to Number' }
     };
     
     let currentTool = null;
@@ -649,6 +658,7 @@
         }
         
         document.getElementById('resultContent').innerHTML = '// Ready to search //';
+        document.getElementById('debugConsole').style.display = 'none';
         searchInput.value = '';
         overlay.style.display = 'flex';
         
@@ -696,34 +706,90 @@
         modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     }
     
-    // ========== FORMAT FUNCTIONS - NO PURCHASE HISTORY ==========
+    // ========== DEBUG FUNCTION ==========
+    function addDebugLog(message) {
+        const debugDiv = document.getElementById('debugConsole');
+        debugDiv.style.display = 'block';
+        debugDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+        debugDiv.scrollTop = debugDiv.scrollHeight;
+        console.log(message);
+    }
     
+    // ========== DIRECT API CALL (NO PROXY) ==========
+    async function directApiCall(url) {
+        addDebugLog(`Direct API call attempt: ${url.substring(0, 100)}...`);
+        try {
+            const response = await fetch(url, {
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (response.ok) {
+                addDebugLog(`✅ Direct call successful! Status: ${response.status}`);
+                return await response.json();
+            } else {
+                addDebugLog(`❌ Direct call failed: HTTP ${response.status}`);
+                return null;
+            }
+        } catch (e) {
+            addDebugLog(`❌ Direct call error: ${e.message}`);
+            return null;
+        }
+    }
+    
+    // ========== PROXIED API CALL ==========
+    async function proxiedApiCall(originalUrl) {
+        const proxies = [
+            { name: 'CORS-Proxy', url: 'https://corsproxy.io/?' },
+            { name: 'All Origins', url: 'https://api.allorigins.win/raw?url=' },
+            { name: 'CORS Anywhere', url: 'https://cors-anywhere.herokuapp.com/' }
+        ];
+        
+        for (const proxy of proxies) {
+            addDebugLog(`Trying ${proxy.name}...`);
+            try {
+                const proxiedUrl = proxy.url + encodeURIComponent(originalUrl);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(proxiedUrl, { 
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    addDebugLog(`✅ ${proxy.name} successful!`);
+                    return await response.json();
+                } else {
+                    addDebugLog(`❌ ${proxy.name} failed: HTTP ${response.status}`);
+                }
+            } catch (e) {
+                addDebugLog(`❌ ${proxy.name} error: ${e.message}`);
+            }
+        }
+        return null;
+    }
+    
+    // ========== FORMAT FUNCTIONS ==========
     function formatFamilyData(data) {
+        addDebugLog(`Formatting Family Data...`);
         let output = [];
         
         if (data.result && data.result.pd) {
             const pd = data.result.pd;
             
-            // Address
             if (pd.address) {
                 output.push(`📍 ADDRESS:`);
                 output.push(`${pd.address}`);
                 output.push('');
             }
             
-            // Ration Card Details
-            if (pd.rcId) {
-                output.push(`📇 Ration Card ID: ${pd.rcId}`);
-            }
-            if (pd.schemeName) {
-                output.push(`🏷️ Scheme: ${pd.schemeName}`);
-            }
+            if (pd.rcId) output.push(`📇 Ration Card ID: ${pd.rcId}`);
+            if (pd.schemeName) output.push(`🏷️ Scheme: ${pd.schemeName}`);
             if (pd.homeStateName && pd.homeDistName) {
                 output.push(`📍 Location: ${pd.homeDistName}, ${pd.homeStateName}`);
             }
             output.push('');
             
-            // FAMILY MEMBERS SECTION
             if (pd.memberDetailsList && Array.isArray(pd.memberDetailsList) && pd.memberDetailsList.length > 0) {
                 output.push(`👨‍👩‍👧 FAMILY MEMBERS (${pd.memberDetailsList.length} members):`);
                 output.push(`─────────────────────────────────`);
@@ -734,24 +800,22 @@
                     }
                     output.push(memberLine);
                 });
-                output.push('');
             } else {
                 output.push(`👨‍👩‍👧 FAMILY MEMBERS: No member details found`);
-                output.push('');
             }
         }
         
         if (output.length === 0) {
-            if (data.result && data.result.rd === "Success") {
-                return '✅ Data fetched successfully, but no family details found.';
-            }
+            addDebugLog(`No family data found in response`);
             return 'No family data found for this Aadhaar/Ration number.';
         }
         
+        addDebugLog(`Family data formatted successfully with ${output.length} lines`);
         return output.join('\n');
     }
     
     function formatTgData(data) {
+        addDebugLog(`Formatting TG Data...`);
         let output = [];
         
         if (data.result && typeof data.result === 'object') {
@@ -764,17 +828,26 @@
                 output.push(`📱 Phone Number: ${fullNumber}`);
             }
             if (res.msg && res.msg !== 'Details fetched') output.push(`📝 ${res.msg}`);
+        } else if (data.phone || data.number) {
+            if (data.phone) output.push(`📱 Phone: ${data.phone}`);
+            if (data.number) output.push(`📱 Number: ${data.number}`);
         }
         
-        if (output.length === 0) return 'No data found for this Telegram ID.';
+        if (output.length === 0) {
+            addDebugLog(`No TG data found in response`);
+            return 'No data found for this Telegram ID.';
+        }
+        
+        addDebugLog(`TG data formatted successfully`);
         return output.join('\n');
     }
     
     function formatNumberData(data) {
+        addDebugLog(`Formatting Number Data...`);
         let output = [];
         
         if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-            data.result.forEach((item, index) => {
+            data.result.slice(0, 10).forEach((item, index) => {
                 output.push(`📍 ITEM ${index + 1}:`);
                 if (item.name) output.push(`  🔹 Name: ${item.name}`);
                 if (item.father_name) output.push(`  🔹 Father Name: ${item.father_name}`);
@@ -782,10 +855,11 @@
                 if (item.circle) output.push(`  🔹 Circle: ${item.circle}`);
                 if (item.mobile) output.push(`  🔹 Mobile: ${item.mobile}`);
                 if (item.alternate) output.push(`  🔹 Alternate: ${item.alternate}`);
-                if (item.email) output.push(`  🔹 Email: ${item.email}`);
-                if (item.id) output.push(`  🔹 ID: ${item.id}`);
                 output.push('');
             });
+            if (data.result.length > 10) {
+                output.push(`⚠️ +${data.result.length - 10} more results not shown`);
+            }
         } else if (data.result && typeof data.result === 'object') {
             const item = data.result;
             if (item.name) output.push(`🔹 Name: ${item.name}`);
@@ -793,33 +867,22 @@
             if (item.address) output.push(`🔹 Address: ${item.address}`);
             if (item.circle) output.push(`🔹 Circle: ${item.circle}`);
             if (item.mobile) output.push(`🔹 Mobile: ${item.mobile}`);
+        } else if (data.name || data.mobile) {
+            if (data.name) output.push(`🔹 Name: ${data.name}`);
+            if (data.mobile) output.push(`🔹 Mobile: ${data.mobile}`);
+            if (data.address) output.push(`🔹 Address: ${data.address}`);
         }
         
-        if (output.length === 0) return 'No data found for this number.';
+        if (output.length === 0) {
+            addDebugLog(`No number data found in response`);
+            return 'No data found for this number.';
+        }
+        
+        addDebugLog(`Number data formatted successfully`);
         return output.join('\n');
     }
     
-    function extractInfo(data, apiType) {
-        if (!data) return 'No data received';
-        if (data.error) return `⚠️ Error: ${data.error}`;
-        
-        try {
-            if (apiType === 'family') {
-                return formatFamilyData(data);
-            } else if (apiType === 'telegram') {
-                return formatTgData(data);
-            } else if (apiType === 'number') {
-                return formatNumberData(data);
-            }
-        } catch (e) {
-            console.error('Formatting error:', e);
-            return 'Error formatting data. Raw response received but parsing failed.';
-        }
-        
-        return 'Data received but no relevant information found.';
-    }
-    
-    // ========== SEARCH FUNCTION ==========
+    // ========== MAIN SEARCH FUNCTION ==========
     async function performSearch() {
         if (!currentTool) {
             alert('Select a tool first!');
@@ -832,34 +895,49 @@
             return;
         }
         
+        // Clear previous debug
+        const debugDiv = document.getElementById('debugConsole');
+        debugDiv.innerHTML = '';
+        debugDiv.style.display = 'block';
+        addDebugLog(`=== Starting search for ${API_CONFIG[currentTool].name} ===`);
+        addDebugLog(`Query: ${query}`);
+        
         showResult('<div class="loading"><span class="loading-spinner"></span> Fetching intel... Please wait</div>', false);
         
         const config = API_CONFIG[currentTool];
         const originalUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
+        addDebugLog(`API URL: ${originalUrl}`);
         
-        for (let i = 0; i < CORS_PROXIES.length; i++) {
-            try {
-                const proxiedUrl = CORS_PROXIES[i] + encodeURIComponent(originalUrl);
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000);
-                const response = await fetch(proxiedUrl, { 
-                    signal: controller.signal,
-                    headers: { 'Accept': 'application/json' }
-                });
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const extracted = extractInfo(data, currentTool);
-                    showResult(extracted, false);
-                    return;
-                }
-            } catch (err) {
-                console.log(`Proxy ${i} failed:`, err.message);
-            }
+        let data = null;
+        
+        // Try direct call first
+        data = await directApiCall(originalUrl);
+        
+        // If direct fails, try proxies
+        if (!data) {
+            addDebugLog(`Direct call failed, trying proxies...`);
+            data = await proxiedApiCall(originalUrl);
         }
         
-        showResult('⚠️ Request timeout or API unreachable. Try again or check your network.', true);
+        if (data) {
+            addDebugLog(`✅ Data received! Processing...`);
+            addDebugLog(`Response keys: ${Object.keys(data).join(', ')}`);
+            
+            let formatted = '';
+            if (currentTool === 'family') {
+                formatted = formatFamilyData(data);
+            } else if (currentTool === 'telegram') {
+                formatted = formatTgData(data);
+            } else {
+                formatted = formatNumberData(data);
+            }
+            
+            showResult(formatted, false);
+            addDebugLog(`✅ Display complete!`);
+        } else {
+            addDebugLog(`❌ All attempts failed! No data received.`);
+            showResult('⚠️ Unable to fetch data. The API server may be down or blocking requests. Check debug console for details.', true);
+        }
     }
     
     function showResult(content, isError) {
@@ -886,7 +964,7 @@
         if (e.target === this) closeTool();
     });
     
-    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | No Purchase History - Only Family Members', 'color: #0F766E; font-size: 14px');
+    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | Debug Console Active', 'color: #0F766E; font-size: 14px');
 </script>
 </body>
 </html>
