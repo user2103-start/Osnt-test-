@@ -454,20 +454,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Debug Console */
-        .debug-console {
-            margin-top: 15px;
-            padding: 10px;
-            background: #1a1a2e;
-            border-radius: 12px;
-            font-size: 10px;
-            font-family: monospace;
-            color: #0f0;
-            max-height: 100px;
-            overflow-y: auto;
-            display: none;
-        }
-
         @media (max-width: 550px) {
             .tool-card {
                 padding: 18px;
@@ -565,7 +551,6 @@
                 <div class="result-title">📡 OUTPUT DATA</div>
                 <div class="result-content" id="resultContent">// Ready //</div>
             </div>
-            <div class="debug-console" id="debugConsole"></div>
         </div>
     </div>
 </div>
@@ -633,9 +618,9 @@
     
     // ========== API CONFIG ==========
     const API_CONFIG = {
-        number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number', name: 'Number Info' },
-        family: { url: 'https://ayaanmods.site/family.php', key: 'annonymousfamily', paramName: 'term', name: 'Aadhaar Family' },
-        telegram: { url: 'https://ayaanmods.site/tg2num.php', key: 'annonymoustgtonum', paramName: 'id', name: 'TG to Number' }
+        number: { url: 'https://ayaanmods.site/number.php', key: 'annonymous', paramName: 'number' },
+        family: { url: 'https://ayaanmods.site/family.php', key: 'annonymousfamily', paramName: 'term' },
+        telegram: { url: 'https://ayaanmods.site/tg2num.php', key: 'annonymoustgtonum', paramName: 'id' }
     };
     
     let currentTool = null;
@@ -658,7 +643,6 @@
         }
         
         document.getElementById('resultContent').innerHTML = '// Ready to search //';
-        document.getElementById('debugConsole').style.display = 'none';
         searchInput.value = '';
         overlay.style.display = 'flex';
         
@@ -706,72 +690,8 @@
         modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     }
     
-    // ========== DEBUG FUNCTION ==========
-    function addDebugLog(message) {
-        const debugDiv = document.getElementById('debugConsole');
-        debugDiv.style.display = 'block';
-        debugDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}\n`;
-        debugDiv.scrollTop = debugDiv.scrollHeight;
-        console.log(message);
-    }
-    
-    // ========== DIRECT API CALL (NO PROXY) ==========
-    async function directApiCall(url) {
-        addDebugLog(`Direct API call attempt: ${url.substring(0, 100)}...`);
-        try {
-            const response = await fetch(url, {
-                mode: 'cors',
-                headers: { 'Accept': 'application/json' }
-            });
-            if (response.ok) {
-                addDebugLog(`✅ Direct call successful! Status: ${response.status}`);
-                return await response.json();
-            } else {
-                addDebugLog(`❌ Direct call failed: HTTP ${response.status}`);
-                return null;
-            }
-        } catch (e) {
-            addDebugLog(`❌ Direct call error: ${e.message}`);
-            return null;
-        }
-    }
-    
-    // ========== PROXIED API CALL ==========
-    async function proxiedApiCall(originalUrl) {
-        const proxies = [
-            { name: 'CORS-Proxy', url: 'https://corsproxy.io/?' },
-            { name: 'All Origins', url: 'https://api.allorigins.win/raw?url=' },
-            { name: 'CORS Anywhere', url: 'https://cors-anywhere.herokuapp.com/' }
-        ];
-        
-        for (const proxy of proxies) {
-            addDebugLog(`Trying ${proxy.name}...`);
-            try {
-                const proxiedUrl = proxy.url + encodeURIComponent(originalUrl);
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-                const response = await fetch(proxiedUrl, { 
-                    signal: controller.signal,
-                    headers: { 'Accept': 'application/json' }
-                });
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    addDebugLog(`✅ ${proxy.name} successful!`);
-                    return await response.json();
-                } else {
-                    addDebugLog(`❌ ${proxy.name} failed: HTTP ${response.status}`);
-                }
-            } catch (e) {
-                addDebugLog(`❌ ${proxy.name} error: ${e.message}`);
-            }
-        }
-        return null;
-    }
-    
     // ========== FORMAT FUNCTIONS ==========
     function formatFamilyData(data) {
-        addDebugLog(`Formatting Family Data...`);
         let output = [];
         
         if (data.result && data.result.pd) {
@@ -803,19 +723,18 @@
             } else {
                 output.push(`👨‍👩‍👧 FAMILY MEMBERS: No member details found`);
             }
+        } else if (data.result && data.result.rd === "Success") {
+            output.push(`✅ Data fetched successfully, but no family details found.`);
+        } else if (data.error) {
+            output.push(`⚠️ Error: ${data.error}`);
+        } else {
+            output.push(`No family data found for this Aadhaar/Ration number.`);
         }
         
-        if (output.length === 0) {
-            addDebugLog(`No family data found in response`);
-            return 'No family data found for this Aadhaar/Ration number.';
-        }
-        
-        addDebugLog(`Family data formatted successfully with ${output.length} lines`);
-        return output.join('\n');
+        return output.length ? output.join('\n') : 'No data received';
     }
     
     function formatTgData(data) {
-        addDebugLog(`Formatting TG Data...`);
         let output = [];
         
         if (data.result && typeof data.result === 'object') {
@@ -831,19 +750,16 @@
         } else if (data.phone || data.number) {
             if (data.phone) output.push(`📱 Phone: ${data.phone}`);
             if (data.number) output.push(`📱 Number: ${data.number}`);
+        } else if (data.error) {
+            output.push(`⚠️ Error: ${data.error}`);
+        } else {
+            output.push(`No data found for this Telegram ID.`);
         }
         
-        if (output.length === 0) {
-            addDebugLog(`No TG data found in response`);
-            return 'No data found for this Telegram ID.';
-        }
-        
-        addDebugLog(`TG data formatted successfully`);
-        return output.join('\n');
+        return output.length ? output.join('\n') : 'No data received';
     }
     
     function formatNumberData(data) {
-        addDebugLog(`Formatting Number Data...`);
         let output = [];
         
         if (data.result && Array.isArray(data.result) && data.result.length > 0) {
@@ -871,15 +787,67 @@
             if (data.name) output.push(`🔹 Name: ${data.name}`);
             if (data.mobile) output.push(`🔹 Mobile: ${data.mobile}`);
             if (data.address) output.push(`🔹 Address: ${data.address}`);
+        } else if (data.error) {
+            output.push(`⚠️ Error: ${data.error}`);
+        } else {
+            output.push(`No data found for this number.`);
         }
         
-        if (output.length === 0) {
-            addDebugLog(`No number data found in response`);
-            return 'No data found for this number.';
+        return output.length ? output.join('\n') : 'No data received';
+    }
+    
+    // ========== USING CORS PROXY WITH JSONP FALLBACK ==========
+    async function fetchWithRetry(url, toolType) {
+        // Try multiple CORS proxies
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            `https://cors-anywhere.herokuapp.com/${url}`
+        ];
+        
+        for (const proxyUrl of proxies) {
+            try {
+                console.log(`Trying proxy: ${proxyUrl.substring(0, 80)}...`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
+                const response = await fetch(proxyUrl, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const text = await response.text();
+                    try {
+                        const data = JSON.parse(text);
+                        if (data && (data.result || data.success !== undefined)) {
+                            console.log(`Success with proxy`);
+                            return data;
+                        }
+                    } catch(e) {
+                        console.log(`JSON parse error, trying next proxy`);
+                    }
+                }
+            } catch (e) {
+                console.log(`Proxy failed: ${e.message}`);
+            }
         }
         
-        addDebugLog(`Number data formatted successfully`);
-        return output.join('\n');
+        // Last resort: Try direct fetch (may fail due to CORS but worth a shot)
+        try {
+            console.log(`Trying direct fetch...`);
+            const response = await fetch(url, {
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch(e) {
+            console.log(`Direct fetch failed: ${e.message}`);
+        }
+        
+        return null;
     }
     
     // ========== MAIN SEARCH FUNCTION ==========
@@ -895,33 +863,17 @@
             return;
         }
         
-        // Clear previous debug
-        const debugDiv = document.getElementById('debugConsole');
-        debugDiv.innerHTML = '';
-        debugDiv.style.display = 'block';
-        addDebugLog(`=== Starting search for ${API_CONFIG[currentTool].name} ===`);
-        addDebugLog(`Query: ${query}`);
-        
         showResult('<div class="loading"><span class="loading-spinner"></span> Fetching intel... Please wait</div>', false);
         
         const config = API_CONFIG[currentTool];
-        const originalUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
-        addDebugLog(`API URL: ${originalUrl}`);
+        const apiUrl = `${config.url}?key=${config.key}&${config.paramName}=${encodeURIComponent(query)}`;
         
-        let data = null;
+        console.log(`Fetching: ${apiUrl}`);
         
-        // Try direct call first
-        data = await directApiCall(originalUrl);
-        
-        // If direct fails, try proxies
-        if (!data) {
-            addDebugLog(`Direct call failed, trying proxies...`);
-            data = await proxiedApiCall(originalUrl);
-        }
+        const data = await fetchWithRetry(apiUrl, currentTool);
         
         if (data) {
-            addDebugLog(`✅ Data received! Processing...`);
-            addDebugLog(`Response keys: ${Object.keys(data).join(', ')}`);
+            console.log(`Data received:`, data);
             
             let formatted = '';
             if (currentTool === 'family') {
@@ -933,10 +885,8 @@
             }
             
             showResult(formatted, false);
-            addDebugLog(`✅ Display complete!`);
         } else {
-            addDebugLog(`❌ All attempts failed! No data received.`);
-            showResult('⚠️ Unable to fetch data. The API server may be down or blocking requests. Check debug console for details.', true);
+            showResult('⚠️ Unable to fetch data. The API server may be blocking requests. Try:\n1. Check your internet connection\n2. Try again after some time\n3. Use a VPN if the API is region-blocked', true);
         }
     }
     
@@ -964,7 +914,8 @@
         if (e.target === this) closeTool();
     });
     
-    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123 | Debug Console Active', 'color: #0F766E; font-size: 14px');
+    console.log('%c🕷️ SpideyOSINT Ready | Password: spidey123', 'color: #0F766E; font-size: 14px');
+    console.log('%cIf API not working, the server may be blocking CORS requests', 'color: #f97316; font-size: 12px');
 </script>
 </body>
 </html>
